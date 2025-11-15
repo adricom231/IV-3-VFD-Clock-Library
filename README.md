@@ -1,4 +1,4 @@
-# VFD-Library
+# IV-3-VFD-Clock-Library
 Library for my IV-3 Clock
 It allows to display text and custom data very easly
 
