@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <VFD.h>
+
 const int latchPin_vfd = 2;
 const int clockPin_vfd = 1;
 const int dataPin_vfd = 44;
