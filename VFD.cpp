@@ -8,6 +8,8 @@ VFD::VFD(int dataPin, int clockPin, int latchPin, int numberOfTubes)
     _clockPin = clockPin;
     _latchPin = latchPin;
     _numberOfTubes = numberOfTubes;
+
+
     memset(_VfdTable, 0, sizeof(_VfdTable));
     _VfdTable['-'] = B00001000;
     _VfdTable['['] = B00010111;
@@ -28,6 +30,24 @@ VFD::VFD(int dataPin, int clockPin, int latchPin, int numberOfTubes)
     _VfdTable['D'] = B10110111;
     _VfdTable['E'] = B00011111;
     _VfdTable['F'] = B00011110;
+
+
+}
+
+void VFD::setCustomTable(const char* map, size_t count) {
+    for (size_t i = 0; i < count; ++i) {
+
+        char character = map[i * 2];
+        byte pattern = (byte)map[i * 2 + 1]; 
+
+        setCustomChar(character, pattern); 
+    }
+}
+
+
+
+void VFD::setCustomChar(char c, byte pattern) {
+    _VfdTable[c & 0x7F] = pattern;
 }
 
 void VFD::begin()

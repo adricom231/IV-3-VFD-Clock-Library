@@ -20,12 +20,24 @@ class VFD
         void printDisplayRaw(byte patterns[]);
         void onAll();
         void offAll();
+
+        void setCustomChar(char c , byte pattern);
+
+        template<size_t N>
+        void setCustomTranslationTable(const char (&map)[N]){
+            setCustomTable(map, N/2);
+        }
+    
     private:
+        void setCustomTable(const char* map, size_t count);
         int _dataPin;
         int _clockPin;
         int _latchPin;
         int _numberOfTubes;
+
         byte _VfdTable[128];
+
+
 };
 
 
