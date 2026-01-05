@@ -9,14 +9,14 @@ const int latchPin_enable = 7;
 const int clockPin_enable = 8;
 const int dataPin_enable = 9;
 
-char customVfdTranslationTable[128]{
-    'A', B11111111,
-    'B', B10011111,
-    'C', B11100111,
-    'D', B11111001,
-    'E', B01111110,
-    'F', B00011000
-};
+// char customVfdTranslationTable[]{
+//     'A', B11111111,
+//     'B', B10011111,
+//     'C', B11100111,
+//     'D', B11111001,
+//     'E', B01111110,
+//     'F', B00011000
+// };
 
 VFD vfd(dataPin_vfd, clockPin_vfd, latchPin_vfd, 6);
 VFD clon(dataPin_enable, clockPin_enable, latchPin_enable, 1);
@@ -24,9 +24,9 @@ VFD clon(dataPin_enable, clockPin_enable, latchPin_enable, 1);
 
 void setup() {
 
-    
+  
   vfd.begin();
-  vfd.setCustomTranslationTable(customVfdTranslationTable); 
+//  vfd.setCustomTranslationTable(customVfdTranslationTable); 
   clon.begin();
   clon.onAll();
 //   byte pattern[6] = {
@@ -40,11 +40,28 @@ void setup() {
 //   vfd.printDisplayRaw(pattern);
 //   delay(5000);
   vfd.printDisplay("ABCDEF");
+  String in ="DESIGNED BY ADRicomn";
+  vfd.printScrolling(in, 500);
+  
+    // String input = "      " + in;
+    // String FrameText = "";
+    // for(int StrIndex = 0; StrIndex <= input.length();StrIndex++){
+    //   if(input[StrIndex+5] == 'm' && input[StrIndex+6] == 'n'){
+    //     StrIndex++;
+    //   }
+
+    //   for(int FrameIndex = StrIndex; FrameIndex < StrIndex+6 ; FrameIndex++){
+    //     FrameText += input[FrameIndex];
+    //   }
+    //   vfd.printDisplayNC(FrameText);
+    //   FrameText="";
+    //   delay(1000);
+    // }
 }
 
 
 void loop() {
-
+  vfd.update();
 
 
 }
@@ -53,8 +70,8 @@ void loop() {
 
 
 //1- right bottom
-//2- przecinek
-//- 3right top
+//2- semicolon
+//3- right top
 //4- top
 //5- middle
 //6- left top
