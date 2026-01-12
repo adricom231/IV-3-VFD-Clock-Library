@@ -54,7 +54,7 @@ VFD::VFD(int dataPin, int clockPin, int latchPin, int numberOfTubes)
     _VfdTable['Y'] = 0b10101101;
     _VfdTable['Z'] = 0b00111011;
     _VfdTable[' '] = 0b00000000;
-
+    _VfdTable['!'] = 0b01100000;
 
 }
 
@@ -73,19 +73,26 @@ void VFD::setCustomChar(char c, byte pattern) {
     _VfdTable[c & 0x7F] = pattern;
 }
 
-void VFD::begin()
-{
+void VFD::begin(){
     pinMode(_dataPin, OUTPUT);
     pinMode(_clockPin, OUTPUT);
     pinMode(_latchPin, OUTPUT);
     digitalWrite(_latchPin, HIGH);
     digitalWrite(_clockPin, LOW);
     digitalWrite(_dataPin, LOW);
-
+    offAll();
 }
 
-void VFD::printDisplay(const String& text){
-    String _text = text;
+void VFD::print(const String& text, unsigned int Interval, bool loop){
+    if(text.length() <= _numberOfTubes){
+        printDisplay(text);
+    }else{
+        printScrolling(text, Interval, loop);
+    }
+}
+
+void VFD::printDisplay(const String& textCenter){
+    String _text = textCenter;
     digitalWrite(_latchPin, LOW);
     char CurrentChar = ' ';
     if(_text.length() < _numberOfTubes){
@@ -95,8 +102,7 @@ void VFD::printDisplay(const String& text){
             _text = _text + ' ';
         }
         blankCount = blankCount / 2;
-        for(int i = 0 ; i < blankCount ; i++){ _text = _text + ' '; }
-        for(int i = 0 ; i < blankCount ; i++){ _text = ' ' + _text; }     
+        for(int i = 0 ; i < blankCount ; i++){ _text = ' ' + _text + ' '; }  
     }
     for(int i = _numberOfTubes - 1 ; i >= 0 ; i--){
         CurrentChar = _text[i];
@@ -130,6 +136,14 @@ void VFD::printDisplayRaw(byte patterns[]){
     digitalWrite(_latchPin, HIGH);
 }
 
+bool VFD::isScrollingActive(){
+    return _scrollActive;
+}
+
+int VFD::scrollingIndex(){
+    return _scrollIndex;
+}
+
 void VFD::update(){
     if(_scrollActive){
         unsigned long currentTime = millis();
@@ -140,17 +154,25 @@ void VFD::update(){
     }
 }
 
-void VFD::printScrolling(const String& textScroll, unsigned int Interval){
+void VFD::printScrolling(const String& textScroll, unsigned int Interval, bool loop){
     _textScroll = textScroll;
     for(int i = 0 ; i < _numberOfTubes ; i++){
-        _textScroll = ' ' + _textScroll;
-        _textScroll = _textScroll + ' ';
+        _textScroll = ' ' + _textScroll + ' ';
     }
     _scrollInterval = Interval;
+    _scrollLoop = loop;
     _scrollActive = true;
     _scrollIndex = 0;
     _lastScrollTime = millis();
     updateScrollingText();
+}
+
+void VFD::stopScrolling(bool clearDisplay){
+    _scrollActive = false;
+    _scrollIndex = 0;
+    if(clearDisplay){
+        offAll();
+    }
 }
 
 void VFD::updateScrollingText(){
@@ -185,12 +207,19 @@ void VFD::updateScrollingText(){
       FrameText += input[FrameIndex];
     }
     printDisplayNC(FrameText);
-
-    // Stop once the entire text has scrolled completely off-screen
-    if(_scrollIndex >= input.length() - _numberOfTubes){
-        _scrollActive = false;
-        _scrollIndex = 0;
-        return;
+    if(!_scrollLoop){
+        // Stop once the entire text has scrolled completely off-screen
+        if(_scrollIndex >= input.length() - _numberOfTubes){
+            _scrollActive = false;
+            _scrollIndex = 0;
+            return;
+        }
+    }else{
+        // Looping mode: reset index to 0 when the end is reached
+        if(_scrollIndex >= input.length() - _numberOfTubes){
+            _scrollIndex = 0;
+            return;
+        }
     }
     _scrollIndex++;
 }

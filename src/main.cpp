@@ -42,26 +42,12 @@ void setup() {
   vfd.printDisplay("ABCDEF");
   String in ="DESIGNED BY ADRicomn";
   vfd.printScrolling(in, 500);
-  
-    // String input = "      " + in;
-    // String FrameText = "";
-    // for(int StrIndex = 0; StrIndex <= input.length();StrIndex++){
-    //   if(input[StrIndex+5] == 'm' && input[StrIndex+6] == 'n'){
-    //     StrIndex++;
-    //   }
-
-    //   for(int FrameIndex = StrIndex; FrameIndex < StrIndex+6 ; FrameIndex++){
-    //     FrameText += input[FrameIndex];
-    //   }
-    //   vfd.printDisplayNC(FrameText);
-    //   FrameText="";
-    //   delay(1000);
-    // }
 }
 
 
 void loop() {
   vfd.update();
+
 
 
 }
