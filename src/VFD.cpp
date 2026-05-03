@@ -83,56 +83,44 @@ void VFD::begin(){
     offAll();
 }
 
-void VFD::print(const String& text, unsigned int Interval, bool loop){
+void VFD::print(const String& text, unsigned int Interval, bool looping, ScrollDirection direction){
     if(text.length() <= _numberOfTubes){
         printDisplay(text);
     }else{
-        printScrolling(text, Interval, loop);
+        printScrolling(text, Interval, looping, direction);
     }
 }
 
 void VFD::printDisplay(const String& textCenter){
-    String _text = textCenter;
-    digitalWrite(_latchPin, LOW);
-    char CurrentChar = ' ';
-    if(_text.length() < _numberOfTubes){
-        int blankCount = _numberOfTubes - _text.length();
-        if((blankCount % 2) == 1){
-            blankCount = blankCount -1;
-            _text = _text + ' ';
-        }
-        blankCount = blankCount / 2;
-        for(int i = 0 ; i < blankCount ; i++){ _text = ' ' + _text + ' '; }  
+    if(isScrollingActive()){
+        pauseScrolling();
     }
-    for(int i = _numberOfTubes - 1 ; i >= 0 ; i--){
-        CurrentChar = _text[i];
-        shiftOut(_dataPin, _clockPin, MSBFIRST, _VfdTable[CurrentChar & 0x7F]);
-    }
-  digitalWrite(_latchPin, HIGH);
+    String _text = centerText(textCenter);
+
+    // Print
+    printFrame(_text);
 }
 
 
 void VFD::printDisplayNC(const String& textNC){
-    String _text = textNC;
-    digitalWrite(_latchPin, LOW);
-    char CurrentChar = ' ';
-    for(int i = _numberOfTubes - 1 ; i >= 0 ; i--){
-        if(i >= (int)_text.length()){
-            CurrentChar = ' ';
-        }else{
-            CurrentChar = _text[i];
-        }
-        shiftOut(_dataPin, _clockPin, MSBFIRST, _VfdTable[CurrentChar & 0x7F]);
-     }
-    digitalWrite(_latchPin, HIGH);
+    if(isScrollingActive()){
+        pauseScrolling();
+    }
+    printFrame(textNC);
 }
 
 
 void VFD::printDisplayRaw(byte patterns[]){
+    if(isScrollingActive()){
+        pauseScrolling();
+    }
     digitalWrite(_latchPin, LOW);
+
+    // Print raw patterns 
     for(int i = _numberOfTubes - 1 ; i >= 0 ; i--){
         shiftOut(_dataPin, _clockPin, MSBFIRST, patterns[i]);
     }
+
     digitalWrite(_latchPin, HIGH);
 }
 
@@ -142,6 +130,28 @@ bool VFD::isScrollingActive(){
 
 int VFD::scrollingIndex(){
     return _scrollIndex;
+}
+
+ScrollDirection VFD::scrollDirection(){
+    return _scrollDirection;
+}
+
+void VFD::printFrame(const String& text){
+    char CurrentChar;
+
+    // Print, allign left, no centering
+    digitalWrite(_latchPin, LOW);
+    for(int i = _numberOfTubes - 1 ; i >= 0 ; i--){
+        if(i >= (int)text.length()){
+            CurrentChar = ' ';
+        }else{
+            CurrentChar = text[i];
+        }
+        shiftOut(_dataPin, _clockPin, MSBFIRST, _VfdTable[CurrentChar & 0x7F]);
+    }
+
+    digitalWrite(_latchPin, HIGH);
+
 }
 
 void VFD::update(){
@@ -154,14 +164,78 @@ void VFD::update(){
     }
 }
 
-void VFD::printScrolling(const String& textScroll, unsigned int Interval, bool loop){
-    _textScroll = textScroll;
+void VFD::printScrollIn(const String& textScroll, unsigned int Interval, ScrollDirection direction){
+    //centerText Does the centering for NumberOfTubes 
+    _textScroll = centerText(textScroll);
+    _unmodifiedTextScroll = textScroll;
+    _scrollDirection = direction;
+
+    // Add  padding (numberOfTubes) depending on the direction
+    if (direction == SCROLL_LEFT){
+        for(int i = 0 ; i < _numberOfTubes ; i++){
+            _textScroll = ' ' + _textScroll;
+        }
+    }else{
+        for(int i = 0 ; i < _numberOfTubes ; i++){
+            _textScroll = _textScroll + ' ';
+        }
+    }
+    
+
+
+    _scrollInterval = Interval;
+    _scrollLoop = false;
+    _scrollActive = true;
+    _scrollDirection = direction;
+    _scrollIndex = 0;
+    _lastScrollTime = millis();
+    updateScrollingText();
+}
+
+
+void VFD::printScrollOut(unsigned int Interval, ScrollDirection direction, const String& textScroll){
+    if(!textScroll.isEmpty()){
+        _textScroll = centerText(textScroll);
+    }else{
+        _textScroll = centerText(_unmodifiedTextScroll);
+    }
+
+
+    _scrollDirection = direction;
+    
+
+    // Add  padding (numberOfTubes) depending on the direction
+    if (direction == SCROLL_RIGHT){
+        for(int i = 0 ; i < _numberOfTubes ; i++){
+            _textScroll = ' ' + _textScroll;
+        }
+    }else{
+        for(int i = 0 ; i < _numberOfTubes ; i++){
+            _textScroll = _textScroll + ' ';
+        }
+    }
+    _scrollInterval = Interval;
+    _scrollLoop = false;
+    _scrollActive = true;
+    _scrollDirection = direction;
+    _scrollIndex = 0;
+    _lastScrollTime = millis();
+    updateScrollingText();
+}
+
+
+void VFD::printScrolling(const String& textScroll, unsigned int Interval, bool looping, ScrollDirection direction){
+    _textScroll = centerText(textScroll);
+    _scrollDirection = direction;
+
     for(int i = 0 ; i < _numberOfTubes ; i++){
         _textScroll = ' ' + _textScroll + ' ';
     }
+
     _scrollInterval = Interval;
-    _scrollLoop = loop;
+    _scrollLoop = looping;
     _scrollActive = true;
+    _scrollDirection = direction;
     _scrollIndex = 0;
     _lastScrollTime = millis();
     updateScrollingText();
@@ -175,8 +249,18 @@ void VFD::stopScrolling(bool clearDisplay){
     }
 }
 
+void VFD::pauseScrolling(){
+    _scrollActive = false;
+}
+
+void VFD::resumeScrolling(){
+    if(!_scrollActive){
+        _scrollActive = true;
+        _lastScrollTime = millis();
+    }
+}
+
 void VFD::updateScrollingText(){
-    String input = _textScroll;
     String FrameText = "";
     // When its about to pass mn it jumps a character to display the nn together at the same time, 
     // Example
@@ -194,36 +278,47 @@ void VFD::updateScrollingText(){
     // com--
     // om---
     // m----
-    int mPos = _scrollIndex + _numberOfTubes - 1;
-    int nPos = _scrollIndex + _numberOfTubes;
 
-    if (nPos < input.length() && input[mPos] == 'm' && input[nPos] == 'n') {
-        _scrollIndex++;
+    if(_scrollDirection == SCROLL_LEFT){
+        int mPos = _scrollIndex + _numberOfTubes - 1;
+        int nPos = _scrollIndex + _numberOfTubes;
+        // Check if the current frame is about to display 'm' followed by 'n', if so, skip the 'm' to display 'nn' together
+        if (nPos < _textScroll.length() && _textScroll[mPos] == 'm' && _textScroll[nPos] == 'n') {
+            _scrollIndex++;
+        }
+    
+        // Take (numberOfTubes) characters from the input starting at _scrollIndex to get current frame
+        for(int FrameIndex = _scrollIndex; FrameIndex < _scrollIndex+_numberOfTubes ; FrameIndex++){
+            FrameText += _textScroll[FrameIndex];
+        }
     }
-    //
+    else if(_scrollDirection == SCROLL_RIGHT){
 
+        int nPos = _textScroll.length() -_scrollIndex - _numberOfTubes;
+        int mPos = _textScroll.length() -_scrollIndex - _numberOfTubes - 1;
+        // Check if the current frame is about to display 'm' followed by 'n', if so, skip the 'm' to display 'nn' together
+        if (mPos >= 0 && _textScroll[mPos] == 'm' && _textScroll[nPos] == 'n') {
+            _scrollIndex++;
+        }
+        
+        for(int FrameIndex = ( _textScroll.length() -_scrollIndex - _numberOfTubes); FrameIndex < ( _textScroll.length() -_scrollIndex ); FrameIndex++){
+            FrameText += _textScroll[FrameIndex];
 
-    for(int FrameIndex = _scrollIndex; FrameIndex < _scrollIndex+_numberOfTubes ; FrameIndex++){
-      FrameText += input[FrameIndex];
+        }
     }
-    printDisplayNC(FrameText);
-    if(!_scrollLoop){
-        // Stop once the entire text has scrolled completely off-screen
-        if(_scrollIndex >= input.length() - _numberOfTubes){
+    // Display the current frame
+    printFrame(FrameText);
+
+    //Reset Loop if loop active and reached the end of the text, else end scrolling if not looping
+    if(_scrollIndex >= _textScroll.length() - _numberOfTubes){
+        if(!_scrollLoop){
             _scrollActive = false;
-            _scrollIndex = 0;
-            return;
         }
-    }else{
-        // Looping mode: reset index to 0 when the end is reached
-        if(_scrollIndex >= input.length() - _numberOfTubes){
-            _scrollIndex = 0;
-            return;
-        }
-    }
+        _scrollIndex = 0;
+        return;
+    }   
     _scrollIndex++;
 }
-
 
 
 void VFD::onAll(){
@@ -243,3 +338,22 @@ void VFD::offAll(){
     }
     digitalWrite(_latchPin, HIGH);
 } 
+
+
+
+String VFD::centerText(const String& text){
+    String _ctrText = text;
+    if(_ctrText.length() < _numberOfTubes){
+        // Make the text lenght even
+        int blankCount = _numberOfTubes - _ctrText.length();
+        if((blankCount % 2) == 1){
+            blankCount = blankCount -1;
+            _ctrText = _ctrText + ' ';
+        }
+        
+        // Add padding so that it fills (numberOfTubes)
+        blankCount = blankCount / 2;
+        for(int i = 0 ; i < blankCount ; i++){ _ctrText = ' ' + _ctrText + ' ';}  
+    }
+    return _ctrText;
+}
